@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlmodel
+aiofiles
+pydantic
+python-multipart
+httpx
+jinja2
+requests

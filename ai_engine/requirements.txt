@@ -1,0 +1,7 @@
+langchain
+langchain-community
+requests
+fastapi
+uvicorn
+python-multipart
+pydantic
