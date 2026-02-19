@@ -2,9 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies if needed
+# Install system dependencies including Tesseract OCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ai_engine/requirements.txt ai_engine/requirements.txt

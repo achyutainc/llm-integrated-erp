@@ -4,6 +4,7 @@ from backend.app.models.inventory import Product, Category, StockBatch
 from backend.app.models.marketing import SocialMediaPost
 from backend.app.models.orders import User
 from backend.app.models.customer import Customer
+from backend.app.models.purchasing import Vendor
 from datetime import date, timedelta
 
 def seed():
@@ -51,10 +52,10 @@ def seed():
 
             # Create a batch if expiry provided
             if "expiry" in p_data:
+                # Convert date to string for SQLite compatibility in StockBatch
                 batch = StockBatch(
                     product_id=p.id,
                     quantity=p_data["stock"],
-                    # Store as ISO string
                     expiry_date=p_data["expiry"].isoformat()
                 )
                 session.add(batch)
@@ -79,8 +80,17 @@ def seed():
         for c in customers:
             session.add(c)
 
+        # Sample Vendors
+        vendors = [
+            Vendor(name="Ontario Dairy Coop", code="V-001", contact_name="Bob Farmer", email="bob@dairy.ca", payment_terms="Net 15"),
+            Vendor(name="Global Spices Imports", code="V-002", contact_name="Raj Patel", email="raj@spices.com", payment_terms="Net 30"),
+            Vendor(name="Costco Business Center", code="V-003", contact_name="Manager", payment_terms="Due on Receipt")
+        ]
+        for v in vendors:
+            session.add(v)
+
         session.commit()
-        print("Seeded database successfully with inventory, marketing, and customer data.")
+        print("Seeded database successfully with inventory, marketing, customers, and vendors.")
 
 if __name__ == "__main__":
     seed()

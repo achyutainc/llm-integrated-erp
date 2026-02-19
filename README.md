@@ -10,13 +10,22 @@ This project combines a lightweight ERP system (FastAPI + Vue 3) with a local AI
 - **Database**: PostgreSQL (or SQLite for dev).
 - **AI Model**: Ollama running locally (Llama 3 recommended).
 
+## Deployment (Render)
+
+This project includes a `render.yaml` for easy deployment on [Render](https://render.com).
+
+**⚠️ Important Constraints for Free Tier:**
+1.  **AI Engine**: The Free Tier (512MB RAM) **cannot** run the local LLM (Ollama/Llama 3) required by `ai_engine`.
+    *   *Workaround:* For cloud deployment, you must modify `ai_engine/agent.py` to use a remote API (like OpenAI or Anthropic) instead of `ChatOllama`, OR host Ollama on a machine with GPU/RAM and expose it via a tunnel (e.g., Ngrok) to the Render service.
+2.  **Spin Down**: Free web services spin down after 15 minutes of inactivity.
+
 ## Prerequisites
 
 - Docker & Docker Compose
 - Node.js 20+ (for local frontend dev if not using Docker)
 - Python 3.12+ (for local backend dev)
 
-## Getting Started
+## Getting Started (Local)
 
 1.  **Start Services**:
     ```bash
@@ -39,21 +48,25 @@ This project combines a lightweight ERP system (FastAPI + Vue 3) with a local AI
     - **Frontend**: http://localhost:5173
       - **Staff Dashboard**: http://localhost:5173/#/ (Default)
       - **Customer Shop**: http://localhost:5173/#/shop
+      - **POS**: http://localhost:5173/#/pos
     - **Backend API Docs**: http://localhost:8000/docs
     - **AI Engine Docs**: http://localhost:8001/docs
 
 ## Features
 
 - **Inventory Management**:
-  - Track stock levels and *Expiry Dates*.
-  - AI Alerts for expiring items (e.g., Milk < 5 days).
+  - Track stock levels and *Expiry Dates* (FEFO logic).
+  - AI Alerts for expiring items.
+- **Point of Sale (POS)**:
+  - Modern touch-friendly interface.
+  - Barcode scanning support.
+  - Customer tracking.
 - **AI Staff Assistant**:
   - Chat interface to query stock ("Do we have milk?").
-  - *Marketing Assistant*: Draft social media posts for Facebook/Instagram.
+  - *Marketing Assistant*: Draft social media posts.
 - **Customer Experience**:
   - **Online Shop**: Browse products.
-  - **Chef AI**: Specialized chat bot for Indian cuisine advice ("How do I make Butter Chicken?").
-- **Order Management**: Create orders via API or AI.
+  - **Chef AI**: Specialized chat bot for Indian cuisine advice.
 
 ## Guides
 

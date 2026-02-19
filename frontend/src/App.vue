@@ -3,11 +3,13 @@ import { computed, ref, onMounted } from 'vue'
 import Dashboard from './views/Dashboard.vue'
 import Shop from './views/Shop.vue'
 import POS from './views/POS.vue'
+import Purchasing from './views/Purchasing.vue'
 
 const routes = {
   '/': Dashboard,
   '/shop': Shop,
-  '/pos': POS
+  '/pos': POS,
+  '/purchasing': Purchasing
 }
 
 const currentPath = ref(window.location.hash)
@@ -36,6 +38,9 @@ const currentView = computed(() => {
           </a>
           <a href="#/pos" class="hover:text-blue-100 transition" :class="{'font-bold underline': currentPath === '#/pos'}">
             Point of Sale
+          </a>
+          <a href="#/purchasing" class="hover:text-blue-100 transition" :class="{'font-bold underline': currentPath === '#/purchasing'}">
+            Purchasing
           </a>
           <a href="#/shop" class="hover:text-blue-100 transition" :class="{'font-bold underline': currentPath === '#/shop'}">
             Online Shop

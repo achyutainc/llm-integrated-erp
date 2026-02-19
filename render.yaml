@@ -1,0 +1,57 @@
+services:
+  # 1. Backend Service
+  - type: web
+    name: erp-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: erp-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.12.0
+
+  # 2. Frontend Service (Static Site or Node)
+  # Using Node service for Vite preview or Static if pre-built.
+  # A Web Service is better for Vite dev/preview mode or serving SPA with rewrites.
+  - type: web
+    name: erp-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm run preview -- --host --port $PORT
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: erp-backend
+          property: url
+      # AI URL would typically point to the AI service, but see note below.
+      - key: AI_URL
+        fromService:
+          type: web
+          name: erp-ai-engine
+          property: url
+
+  # 3. AI Engine (The Limitation)
+  # NOTE: This service requires significant RAM to run Ollama.
+  # Render Free Tier (512MB) CANNOT run Llama 3.
+  # This service will fail to start the LLM or crash immediately.
+  # For Cloud deployment, replace local Ollama with OpenAI/Anthropic API calls.
+  - type: web
+    name: erp-ai-engine
+    env: docker
+    dockerFilePath: ai_engine/Dockerfile
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: erp-backend
+          property: url
+
+databases:
+  - name: erp-db
+    databaseName: erp
+    user: admin
+    plan: free # Good for dev/testing (90 days)
