@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from backend.app.database import get_session
 from backend.app.models.orders import Order, OrderItem
-from backend.app.models.inventory import Product, StockBatch
+from backend.app.models.inventory import Product, StockBatch, StockMove
 from pydantic import BaseModel
 from datetime import datetime
+from sqlalchemy.orm import selectinload
 
 class OrderItemCreate(BaseModel):
     product_id: int
@@ -51,10 +52,8 @@ def create_order(
 
         product = session.get(Product, prod_id)
         if not product:
-            # Rollback logic could be added here, or let transaction fail if atomic
             raise HTTPException(status_code=404, detail=f"Product {prod_id} not found")
 
-        # Check total stock
         if product.stock_quantity < qty_needed:
              raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.name}. Have: {product.stock_quantity}, Need: {qty_needed}")
 
@@ -62,7 +61,6 @@ def create_order(
         total_amount += (unit_price * qty_needed)
 
         # --- FEFO LOGIC ---
-        # Get batches sorted by expiry (earliest first).
         batches = session.exec(
             select(StockBatch)
             .where(StockBatch.product_id == prod_id, StockBatch.quantity > 0)
@@ -84,6 +82,15 @@ def create_order(
         product.stock_quantity -= qty_needed
         session.add(product)
 
+        # --- STOCK MOVE (LEDGER) ---
+        move = StockMove(
+            product_id=prod_id,
+            quantity=-qty_needed, # Negative for sale
+            move_type="sale",
+            reference=f"Order #{order.id}"
+        )
+        session.add(move)
+
         # Create Order Item
         order_item = OrderItem(
             order_id=order.id,
@@ -98,7 +105,12 @@ def create_order(
     session.commit()
     session.refresh(order)
 
-    return order
+    # Return order with items eagerly loaded
+    refreshed_order = session.exec(
+        select(Order).where(Order.id == order.id).options(selectinload(Order.items))
+    ).first()
+
+    return refreshed_order
 
 @router.get("/orders/", response_model=List[Order])
 def read_orders(
@@ -111,7 +123,9 @@ def read_orders(
 
 @router.get("/orders/{order_id}", response_model=Order)
 def read_order(order_id: int, session: Session = Depends(get_session)):
-    order = session.get(Order, order_id)
+    order = session.exec(
+        select(Order).where(Order.id == order_id).options(selectinload(Order.items))
+    ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order

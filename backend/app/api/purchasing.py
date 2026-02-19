@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from backend.app.database import get_session
 from backend.app.models.purchasing import Vendor, PurchaseOrder, PurchaseOrderItem, SupplierPricelist
-from backend.app.models.inventory import Product, StockBatch
+from backend.app.models.inventory import Product, StockBatch, StockMove
 from datetime import date
 
 router = APIRouter()
@@ -84,6 +84,15 @@ def receive_po(po_id: int, session: Session = Depends(get_session)):
         if product:
             product.stock_quantity += item.quantity
             session.add(product)
+
+            # --- STOCK MOVE (LEDGER) ---
+            move = StockMove(
+                product_id=item.product_id,
+                quantity=item.quantity, # Positive for purchase
+                move_type="purchase",
+                reference=f"PO #{po.id}"
+            )
+            session.add(move)
 
     po.status = "received"
     session.add(po)

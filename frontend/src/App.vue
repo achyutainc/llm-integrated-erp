@@ -4,12 +4,14 @@ import Dashboard from './views/Dashboard.vue'
 import Shop from './views/Shop.vue'
 import POS from './views/POS.vue'
 import Purchasing from './views/Purchasing.vue'
+import Inventory from './views/Inventory.vue'
 
 const routes = {
   '/': Dashboard,
   '/shop': Shop,
   '/pos': POS,
-  '/purchasing': Purchasing
+  '/purchasing': Purchasing,
+  '/inventory': Inventory
 }
 
 const currentPath = ref(window.location.hash)
@@ -35,6 +37,9 @@ const currentView = computed(() => {
         <div class="flex items-center gap-6">
           <a href="#/" class="hover:text-blue-100 transition" :class="{'font-bold underline': currentPath === '' || currentPath === '#/'}">
             Dashboard
+          </a>
+          <a href="#/inventory" class="hover:text-blue-100 transition" :class="{'font-bold underline': currentPath === '#/inventory'}">
+            Inventory
           </a>
           <a href="#/pos" class="hover:text-blue-100 transition" :class="{'font-bold underline': currentPath === '#/pos'}">
             Point of Sale

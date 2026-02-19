@@ -2,10 +2,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from backend.app.database import get_session
-from backend.app.models.inventory import Product, Category, StockBatch
+from backend.app.models.inventory import Product, Category, StockBatch, StockMove
 from datetime import date, timedelta
+from pydantic import BaseModel
 
 router = APIRouter()
+
+class AdjustmentRequest(BaseModel):
+    product_id: int
+    quantity_change: int # Negative to reduce stock
+    reason: str
 
 @router.post("/products/", response_model=Product)
 def create_product(product: Product, session: Session = Depends(get_session)):
@@ -59,6 +65,15 @@ def add_stock_batch(
     product.stock_quantity += batch.quantity
     session.add(product)
 
+    # Create Ledger Entry
+    move = StockMove(
+        product_id=product_id,
+        quantity=batch.quantity,
+        move_type="adjustment_in",
+        reference="Manual Batch Add"
+    )
+    session.add(move)
+
     session.commit()
     session.refresh(batch)
     return batch
@@ -68,17 +83,79 @@ def get_expiry_alerts(
     days: int = 7,
     session: Session = Depends(get_session)
 ):
-    """
-    Returns stock batches expiring within the specified number of days.
-    """
-    # Compare strings: "2024-01-01" <= "2024-01-08" works.
     threshold_date = (date.today() + timedelta(days=days)).isoformat()
-
-    # Query for batches expiring soon (assuming expiry_date is set)
     statement = select(StockBatch).where(
         StockBatch.expiry_date != None,
         StockBatch.expiry_date <= threshold_date,
-        StockBatch.quantity > 0 # Only list if we actually have stock
+        StockBatch.quantity > 0
     )
     batches = session.exec(statement).all()
     return batches
+
+@router.post("/inventory/adjust", response_model=StockMove)
+def adjust_inventory(
+    req: AdjustmentRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Manually adjust inventory (e.g., spoilage, theft, correction).
+    """
+    product = session.get(Product, req.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Validation
+    if req.quantity_change < 0 and product.stock_quantity < abs(req.quantity_change):
+        raise HTTPException(status_code=400, detail="Cannot reduce stock below zero.")
+
+    # Update Product Total
+    product.stock_quantity += req.quantity_change
+    session.add(product)
+
+    # Handle Batches
+    if req.quantity_change > 0:
+        batch = StockBatch(
+            product_id=req.product_id,
+            quantity=req.quantity_change,
+            # No expiry set for adjustment unless we expand API.
+        )
+        session.add(batch)
+
+    elif req.quantity_change < 0:
+        qty_to_remove = abs(req.quantity_change)
+        batches = session.exec(
+            select(StockBatch)
+            .where(StockBatch.product_id == req.product_id, StockBatch.quantity > 0)
+            .order_by(StockBatch.expiry_date.asc())
+        ).all()
+
+        for batch in batches:
+            if qty_to_remove <= 0:
+                break
+            deduct = min(batch.quantity, qty_to_remove)
+            batch.quantity -= deduct
+            qty_to_remove -= deduct
+            session.add(batch)
+
+    # Record Ledger Move
+    move = StockMove(
+        product_id=req.product_id,
+        quantity=req.quantity_change,
+        move_type="adjustment",
+        reference=req.reason
+    )
+    session.add(move)
+    session.commit()
+    session.refresh(move)
+    return move
+
+@router.get("/inventory/moves", response_model=List[StockMove])
+def get_stock_moves(
+    product_id: Optional[int] = None,
+    limit: int = 50,
+    session: Session = Depends(get_session)
+):
+    query = select(StockMove).order_by(StockMove.date.desc()).limit(limit)
+    if product_id:
+        query = query.where(StockMove.product_id == product_id)
+    return session.exec(query).all()
