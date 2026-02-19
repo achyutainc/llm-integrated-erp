@@ -1,21 +1,7 @@
 from typing import List, Optional
 from sqlmodel import Field, Relationship, SQLModel
 from datetime import datetime
-
-class Category(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(index=True)
-    products: List["Product"] = Relationship(back_populates="category")
-
-class Product(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(index=True)
-    description: Optional[str] = None
-    price: float
-    stock_quantity: int = Field(default=0)
-    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
-    category: Optional[Category] = Relationship(back_populates="products")
-    is_takeout: bool = Field(default=False)
+from backend.app.models.inventory import Product
 
 class OrderItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -31,8 +17,9 @@ class Order(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int # Assume external auth or simple staff ID for now
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    status: str = Field(default="draft") # draft, paid, delivered
+    status: str = Field(default="draft") # draft, paid, delivered, pickup
     total_amount: float = Field(default=0.0)
+    is_takeout: bool = Field(default=False) # Ecommerce vs Takeout Restaurant logic
 
     items: List[OrderItem] = Relationship(back_populates="order")
 

@@ -1,14 +1,14 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from backend.app.database import get_session
-from backend.app.models import Order, OrderItem, Product
+from backend.app.models.orders import Order, OrderItem
+from backend.app.models.inventory import Product
 
 router = APIRouter()
 
 @router.post("/orders/", response_model=Order)
 def create_order(order: Order, session: Session = Depends(get_session)):
-    # Calculate total and validate stock if needed (omitted for brevity in MVP)
     session.add(order)
     session.commit()
     session.refresh(order)
@@ -36,18 +36,15 @@ def create_order_item(
     item: OrderItem,
     session: Session = Depends(get_session)
 ):
-    # Verify Order exists
     order = session.get(Order, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Verify Product exists
     product = session.get(Product, item.product_id)
     if not product:
          raise HTTPException(status_code=404, detail="Product not found")
 
     item.order_id = order_id
-    # Could update order total here
     session.add(item)
     session.commit()
     session.refresh(item)

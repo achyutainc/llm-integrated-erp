@@ -1,28 +1,45 @@
 from langgraph.prebuilt import create_react_agent
 from langchain_community.chat_models import ChatOllama
-from ai_engine.tools import search_products, check_stock, agent_create_order
+from ai_engine.tools import (
+    search_products, check_stock, agent_create_order,
+    check_expiry_alert, generate_marketing_draft, suggest_recipe_products
+)
+from ai_engine.prompts import STAFF_SYSTEM_PROMPT, CUSTOMER_SYSTEM_PROMPT
 from typing import Optional, Any
-from langchain_core.messages import HumanMessage, BaseMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
-# Tools definition
-tools = [search_products, check_stock, agent_create_order]
+# Define Tool Sets
+STAFF_TOOLS = [search_products, check_stock, agent_create_order, check_expiry_alert, generate_marketing_draft]
+CUSTOMER_TOOLS = [search_products, check_stock, suggest_recipe_products]
 
 def get_llm():
-    # Default to ChatOllama running locally
     return ChatOllama(model="llama3")
 
-def get_agent_executor(llm: Optional[Any] = None):
+def get_agent_executor(mode: str = "staff", llm: Optional[Any] = None):
     if llm is None:
         llm = get_llm()
 
-    # create_react_agent creates a CompiledGraph
-    return create_react_agent(llm, tools)
+    if mode == "customer":
+        tools = CUSTOMER_TOOLS
+        system_prompt = CUSTOMER_SYSTEM_PROMPT
+    else:
+        tools = STAFF_TOOLS
+        system_prompt = STAFF_SYSTEM_PROMPT
 
-def run_agent(query: str, llm: Optional[Any] = None):
-    agent = get_agent_executor(llm)
+    # create_react_agent handles message history and tool calls.
+    # state_modifier allows injecting the system prompt.
+    return create_react_agent(llm, tools, state_modifier=system_prompt)
+
+def run_agent(query: str, mode: str = "staff", llm: Optional[Any] = None):
+    """
+    Run the agent with the specified mode ('staff' or 'customer').
+    """
+    agent = get_agent_executor(mode, llm)
     try:
-        # invoke returns a dict with 'messages': List[BaseMessage]
+        # Pass the human message
         result = agent.invoke({"messages": [HumanMessage(content=query)]})
+
+        # Result state contains "messages" list. Last one is the answer.
         messages = result.get("messages", [])
         if messages:
              last_msg = messages[-1]

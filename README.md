@@ -1,12 +1,12 @@
 # Local ERP AI Platform
 
-This project combines a lightweight ERP system (FastAPI + Vue 3) with a local AI Agent (LangGraph + Ollama).
+This project combines a lightweight ERP system (FastAPI + Vue 3) with a local AI Agent (LangGraph + Ollama), customized for a Grocery & Takeout business.
 
 ## Architecture
 
-- **Backend**: FastAPI with SQLModel (PostgreSQL/SQLite). Handles Inventory, Orders, Users.
-- **AI Engine**: Python service using LangGraph and LangChain to interact with Ollama and the Backend API.
-- **Frontend**: Vue 3 + Tailwind CSS + Vite.
+- **Backend**: FastAPI with SQLModel (PostgreSQL/SQLite). Handles Inventory, Orders, Users, Marketing.
+- **AI Engine**: Python service using LangGraph and LangChain to interface with Ollama and the Backend API.
+- **Frontend**: Vue 3 + Tailwind CSS + Vite. Includes Staff Dashboard & Customer Shop.
 - **Database**: PostgreSQL (or SQLite for dev).
 - **AI Model**: Ollama running locally (Llama 3 recommended).
 
@@ -30,30 +30,31 @@ This project combines a lightweight ERP system (FastAPI + Vue 3) with a local AI
     ```
 
 3.  **Seed Data**:
-    Run the seed script to populate initial inventory:
+    Run the seed script to populate initial inventory and marketing drafts:
     ```bash
     docker-compose exec backend python backend/seed_data.py
     ```
 
 4.  **Access the App**:
-    - Frontend: http://localhost:5173
-    - Backend API Docs: http://localhost:8000/docs
-    - AI Engine Docs: http://localhost:8001/docs
-
-## Development
-
-- **Backend**:
-  - Code changes in `backend/` auto-reload.
-  - Tests: `pytest tests/`
-
-- **AI Engine**:
-  - Code changes in `ai_engine/` auto-reload.
-
-- **Frontend**:
-  - Code changes in `frontend/` auto-reload.
+    - **Frontend**: http://localhost:5173
+      - **Staff Dashboard**: http://localhost:5173/#/ (Default)
+      - **Customer Shop**: http://localhost:5173/#/shop
+    - **Backend API Docs**: http://localhost:8000/docs
+    - **AI Engine Docs**: http://localhost:8001/docs
 
 ## Features
 
-- **Inventory Management**: Add/Edit products, track stock.
-- **AI Assistant**: Chat with the system to query inventory ("Do we have milk?") or create orders.
+- **Inventory Management**:
+  - Track stock levels and *Expiry Dates*.
+  - AI Alerts for expiring items (e.g., Milk < 5 days).
+- **AI Staff Assistant**:
+  - Chat interface to query stock ("Do we have milk?").
+  - *Marketing Assistant*: Draft social media posts for Facebook/Instagram.
+- **Customer Experience**:
+  - **Online Shop**: Browse products.
+  - **Chef AI**: Specialized chat bot for Indian cuisine advice ("How do I make Butter Chicken?").
 - **Order Management**: Create orders via API or AI.
+
+## Guides
+
+- [Staff Guide (AI Usage)](STAFF_GUIDE.md)

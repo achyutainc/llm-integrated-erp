@@ -22,8 +22,10 @@ services:
       - "8001:8001"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
+      - BACKEND_URL=http://backend:8000/api/v1
     depends_on:
       - ollama
+      - backend
     volumes:
       - ./ai_engine:/app/ai_engine
 
@@ -33,9 +35,19 @@ services:
       dockerfile: frontend/Dockerfile
     ports:
       - "5173:5173"
+    environment:
+      # Note: These are build-time vars for Vite if prefixed VITE_, but we use proxy in vite.config.js
+      # The proxy target is set in vite.config.js using process.env.
+      # However, Vite replaces process.env during build.
+      # For dev mode (npm run dev), we can pass env vars.
+      - BACKEND_URL=http://backend:8000
+      - AI_URL=http://ai_engine:8001
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    depends_on:
+      - backend
+      - ai_engine
 
   db:
     image: postgres:15

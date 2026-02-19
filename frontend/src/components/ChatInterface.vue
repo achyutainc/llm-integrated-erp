@@ -45,7 +45,7 @@ const sendMessage = async () => {
 
   try {
     // Assuming Vite proxy forwards /ai to the AI service
-    const response = await axios.post('/ai/ask', { prompt: text })
+    const response = await axios.post('/ai/ask', { prompt: text, mode: 'staff' })
     messages.value.push({ role: 'ai', content: response.data.response })
   } catch (error) {
     messages.value.push({ role: 'ai', content: 'Error: ' + (error.response?.data?.detail || error.message) })
@@ -53,4 +53,10 @@ const sendMessage = async () => {
     loading.value = false
   }
 }
+
+// Expose internal state for parent component
+defineExpose({
+    userInput,
+    sendMessage
+})
 </script>
