@@ -2,6 +2,7 @@ from typing import List, Optional
 from sqlmodel import Field, Relationship, SQLModel
 from datetime import datetime
 from backend.app.models.inventory import Product
+from backend.app.models.customer import Customer
 
 class OrderItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -20,6 +21,12 @@ class Order(SQLModel, table=True):
     status: str = Field(default="draft") # draft, paid, delivered, pickup
     total_amount: float = Field(default=0.0)
     is_takeout: bool = Field(default=False) # Ecommerce vs Takeout Restaurant logic
+
+    # New Fields for POS
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    notes: Optional[str] = None
+
+    customer: Optional["Customer"] = Relationship()
 
     items: List[OrderItem] = Relationship(back_populates="order")
 

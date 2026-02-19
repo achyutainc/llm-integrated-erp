@@ -3,15 +3,101 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from backend.app.database import get_session
 from backend.app.models.orders import Order, OrderItem
-from backend.app.models.inventory import Product
+from backend.app.models.inventory import Product, StockBatch
+from pydantic import BaseModel
+from datetime import datetime
+
+class OrderItemCreate(BaseModel):
+    product_id: int
+    quantity: int
+
+class CreateOrderRequest(BaseModel):
+    user_id: int
+    customer_id: Optional[int] = None
+    items: List[OrderItemCreate]
+    is_takeout: bool = False
+    notes: Optional[str] = None
+    status: str = "paid"
 
 router = APIRouter()
 
 @router.post("/orders/", response_model=Order)
-def create_order(order: Order, session: Session = Depends(get_session)):
+def create_order(
+    request: CreateOrderRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Creates an order and deducts stock using First-Expiry-First-Out (FEFO) logic.
+    """
+    total_amount = 0.0
+
+    # 1. Create Order
+    order = Order(
+        user_id=request.user_id,
+        customer_id=request.customer_id,
+        is_takeout=request.is_takeout,
+        notes=request.notes,
+        status=request.status,
+        created_at=datetime.utcnow()
+    )
     session.add(order)
     session.commit()
     session.refresh(order)
+
+    # 2. Process Items
+    for item_data in request.items:
+        prod_id = item_data.product_id
+        qty_needed = item_data.quantity
+
+        product = session.get(Product, prod_id)
+        if not product:
+            # Rollback logic could be added here, or let transaction fail if atomic
+            raise HTTPException(status_code=404, detail=f"Product {prod_id} not found")
+
+        # Check total stock
+        if product.stock_quantity < qty_needed:
+             raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.name}. Have: {product.stock_quantity}, Need: {qty_needed}")
+
+        unit_price = product.price
+        total_amount += (unit_price * qty_needed)
+
+        # --- FEFO LOGIC ---
+        # Get batches sorted by expiry (earliest first).
+        batches = session.exec(
+            select(StockBatch)
+            .where(StockBatch.product_id == prod_id, StockBatch.quantity > 0)
+            .order_by(StockBatch.expiry_date.asc())
+        ).all()
+
+        remaining_qty = qty_needed
+
+        for batch in batches:
+            if remaining_qty <= 0:
+                break
+
+            deduct = min(batch.quantity, remaining_qty)
+            batch.quantity -= deduct
+            remaining_qty -= deduct
+            session.add(batch)
+
+        # Update product total stock
+        product.stock_quantity -= qty_needed
+        session.add(product)
+
+        # Create Order Item
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=prod_id,
+            quantity=qty_needed,
+            unit_price=unit_price
+        )
+        session.add(order_item)
+
+    order.total_amount = total_amount
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+
     return order
 
 @router.get("/orders/", response_model=List[Order])
@@ -29,23 +115,3 @@ def read_order(order_id: int, session: Session = Depends(get_session)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order
-
-@router.post("/orders/{order_id}/items/", response_model=OrderItem)
-def create_order_item(
-    order_id: int,
-    item: OrderItem,
-    session: Session = Depends(get_session)
-):
-    order = session.get(Order, order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    product = session.get(Product, item.product_id)
-    if not product:
-         raise HTTPException(status_code=404, detail="Product not found")
-
-    item.order_id = order_id
-    session.add(item)
-    session.commit()
-    session.refresh(item)
-    return item

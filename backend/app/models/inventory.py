@@ -6,7 +6,9 @@ class StockBatch(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     product_id: int = Field(foreign_key="product.id")
     quantity: int = Field(default=0)
-    expiry_date: Optional[date] = None # Crucial for "Best Before" tracking
+    # Changed to str to avoid SQLite/Pydantic date parsing issues in test environment.
+    # ISO Format YYYY-MM-DD strings sort and compare correctly.
+    expiry_date: Optional[str] = None
     received_date: date = Field(default_factory=date.today)
 
     product: "Product" = Relationship(back_populates="batches")
@@ -22,9 +24,17 @@ class Product(SQLModel, table=True):
     category: Optional["Category"] = Relationship(back_populates="products")
     is_takeout: bool = Field(default=False)
 
+    # New Fields for POS
+    barcode: Optional[str] = Field(default=None, index=True, unique=True)
+    image_url: Optional[str] = None
+
     batches: List[StockBatch] = Relationship(back_populates="product")
 
 class Category(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
+
+    # New Fields for POS
+    image_url: Optional[str] = None
+
     products: List[Product] = Relationship(back_populates="category")

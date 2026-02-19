@@ -71,7 +71,9 @@ def get_expiry_alerts(
     """
     Returns stock batches expiring within the specified number of days.
     """
-    threshold_date = date.today() + timedelta(days=days)
+    # Compare strings: "2024-01-01" <= "2024-01-08" works.
+    threshold_date = (date.today() + timedelta(days=days)).isoformat()
+
     # Query for batches expiring soon (assuming expiry_date is set)
     statement = select(StockBatch).where(
         StockBatch.expiry_date != None,
