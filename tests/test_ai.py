@@ -1,0 +1,39 @@
+from ai_engine.agent import run_agent, tools
+from unittest.mock import MagicMock, patch
+import pytest
+
+@patch("ai_engine.tools.requests")
+def test_search_products_tool(mock_requests):
+    # Mock backend response
+    mock_response = MagicMock()
+    mock_response.json.return_value = [{"name": "Milk", "description": "Dairy", "price": 3.99}]
+    mock_requests.get.return_value = mock_response
+
+    from ai_engine.tools import search_products
+    result = search_products("milk")
+
+    assert "Milk" in result
+    mock_requests.get.assert_called_with("http://localhost:8000/api/v1/products/")
+
+@patch("ai_engine.agent.create_react_agent")
+def test_agent_run(mock_create_react_agent):
+    # Mock the graph returned by create_react_agent
+    mock_graph = MagicMock()
+    # mock_graph.invoke returns a dict with 'messages'
+    mock_message = MagicMock()
+    mock_message.content = "I found milk in stock."
+    mock_graph.invoke.return_value = {"messages": [MagicMock(), mock_message]}
+
+    mock_create_react_agent.return_value = mock_graph
+
+    response = run_agent("Do we have milk?")
+    assert "I found milk" in response
+    mock_graph.invoke.assert_called_once()
+
+def test_tool_definitions():
+    assert len(tools) == 3
+    # Function names
+    tool_names = [t.__name__ for t in tools]
+    assert "search_products" in tool_names
+    assert "check_stock" in tool_names
+    assert "agent_create_order" in tool_names
